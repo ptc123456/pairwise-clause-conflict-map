@@ -1,8 +1,8 @@
 # Frontend RPC Budget
 
-FRONTEND_MATRIX_STATUS: COMPLETE
-
 ## FRONTEND RPC BUDGET MATRIX
+
+FRONTEND_MATRIX_STATUS: COMPLETE
 
 | Screen/workflow | Trigger | Reads | Writes | Poll cadence | Backoff | Hidden tab | Cache/dedupe | Teardown | Max requests | Max transactions | Failure state |
 |---|---|---|---|---|---|---|---|---|---:|---:|---|
