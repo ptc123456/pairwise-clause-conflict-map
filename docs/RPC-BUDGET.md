@@ -22,7 +22,7 @@ STUDIO_MATRIX_STATUS: COMPLETE
 
 | Workflow | Trigger | Observable action | Transactions | Poll maximum | Terminal reads | Authoritative readbacks | Retry/resubmit | Terminal condition |
 |---|---|---|---:|---:|---:|---:|---|---|
-| Capability/schema probe | once before PRE_DEPLOY | open exact source in Studio and inspect compiled public schema | 0 | 0 | 0 | 1 schema inventory | none | 14 methods visible or stop |
+| Capability/schema probe | once before PRE_DEPLOY | open exact source in Studio, require Monaco lint with no errors, and bind local exact-runtime schema inventory; Studio method forms are verified after deployment | 0 | 0 | 0 | 1 source/lint check before review; 1 method inventory after deployment | one bounded retry after rate-limit cooldown | 0 Studio lint errors before review; 14 deployed methods visible later or stop |
 | Deployment | after PRE_DEPLOY approval | deploy exact reviewed source once | 1 | 3 at 2/4/8 s | 1 | 1 contract/schema readback | no automatic redeploy | finalized semantic success plus address/schema parity |
 | Create base case | explicit approved E2E step | `create_bundle` with one locked nonce | 1 | 3 at 2/4/8 s | 1 | 2: nonce ID then exact version 1 | no resubmit | success; nonce resolves exact record |
 | Replace draft | after verified create | `replace_bundle` at expected revision | 1 | 3 at 2/4/8 s | 1 | 1 exact next version | no resubmit | success; base and operation hash match |
