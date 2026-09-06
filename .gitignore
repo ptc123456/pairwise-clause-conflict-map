@@ -2,6 +2,7 @@ AGENTS.md
 CLAUDE.md
 docs/preflight/
 contract-schema.json
+artifacts/
 .pytest_cache/
 __pycache__/
 frontend/node_modules/
