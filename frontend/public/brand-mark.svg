@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
+  <!-- Precision Instrument Frame -->
+  <rect x="1.5" y="1.5" width="29" height="29" rx="6" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+
+  <!-- Coordinate Hairlines -->
+  <line x1="16" y1="4" x2="16" y2="28" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="2 2"/>
+  <line x1="4" y1="16" x2="28" y2="16" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="2 2"/>
+
+  <!-- Clause Node A (i) -->
+  <circle cx="9" cy="9" r="4.5" fill="#0f172a"/>
+  <circle cx="9" cy="9" r="2" fill="#ffffff"/>
+
+  <!-- Clause Node B (j) -->
+  <circle cx="23" cy="23" r="4.5" fill="#0f172a"/>
+  <circle cx="23" cy="23" r="2" fill="#ffffff"/>
+
+  <!-- Pairwise Clash Ray / Conflict Axis -->
+  <line x1="12" y1="12" x2="20" y2="20" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.5 2"/>
+
+  <!-- Directed Precedence Path Arc (Higher to Lower resolution vector) -->
+  <path d="M 9 15 C 9 21, 15 23, 19 23" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+  <!-- Precedence Arrowhead at Node B -->
+  <polygon points="17,21 21,23 17,25" fill="#2563eb"/>
+</svg>
