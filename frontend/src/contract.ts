@@ -26,8 +26,19 @@ export async function submit(client: ReturnType<typeof writer>, method: string, 
   if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new Error("Wallet returned an invalid transaction hash.");
   return hash as TransactionHash;
 }
-export async function finalized(hash: TransactionHash) {
-  const transaction = await bounded("case-write", `receipt:${hash}`, 3, () => readClient.waitForFinalization({ hash, interval: 2_000, retries: 3, fullTransaction: true }));
+const delay = (ms: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, ms); signal.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason ?? new Error("Transaction check stopped.")); }, { once: true }); });
+async function visible(signal: AbortSignal) {
+  if (!document.hidden) return;
+  await new Promise<void>((resolve, reject) => { const show = () => { if (!document.hidden) { document.removeEventListener("visibilitychange", show); resolve(); } }; signal.addEventListener("abort", () => reject(signal.reason), { once: true }); document.addEventListener("visibilitychange", show); });
+}
+export async function finalized(hash: TransactionHash, signal: AbortSignal) {
+  let transaction;
+  for (const ms of [2_000, 4_000, 8_000]) {
+    await visible(signal); await delay(ms, signal);
+    transaction = await bounded(`receipt:${hash}`, `receipt:${hash}`, 3, () => readClient.getTransaction({ hash }));
+    if (transaction.statusName === "FINALIZED") break;
+  }
+  if (!transaction || transaction.statusName !== "FINALIZED") throw new Error("Finality was not observed within the RPC budget. Reconcile this hash; do not resubmit.");
   if (!isSuccessful(transaction)) throw new Error(`Execution failed: ${transaction.statusName} / ${transaction.txExecutionResultName}`);
   return transaction;
 }

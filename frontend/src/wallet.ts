@@ -49,7 +49,7 @@ export function discoverWallets() {
 
 export const walletStore = {
   snapshot, subscribe,
-  open() { discoverWallets(); emit({ ...state, phase: "CHOOSER_OPEN", error: undefined }); },
+  open() { emit({ ...state, phase: "DISCOVERING", error: undefined }); discoverWallets(); emit({ ...state, phase: "CHOOSER_OPEN", error: undefined }); },
   close() { emit({ phase: "DISCONNECTED", wallets: state.wallets }); },
   async connect(wallet: Wallet) {
     if (!state.wallets.some((item) => item.id === wallet.id && item.provider === wallet.provider)) return;
@@ -77,5 +77,6 @@ export const walletStore = {
     } catch (cause) { emit({ ...state, phase: "ERROR", error: cause instanceof Error ? cause.message : "Wallet connection failed." }); }
   },
   disconnect() { cleanup(); cleanup = () => {}; emit({ phase: "DISCONNECTED", wallets: state.wallets }); },
+  async recoverChain() { if (!state.selected) return; await this.connect(state.selected); },
 };
 export function useWallet() { return useSyncExternalStore(walletStore.subscribe, walletStore.snapshot); }

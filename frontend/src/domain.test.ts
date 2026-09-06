@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cells, resolutionPath, type Bundle } from "./domain";
+import { canonicalJson, cells, contractArgs, digest, resolutionPath, type Bundle } from "./domain";
 
 const bundle: Bundle = {
   clauses: [{ id: "a", text: "A" }, { id: "b", text: "B" }, { id: "c", text: "C" }],
@@ -16,5 +16,12 @@ describe("pair map", () => {
   it("shows deterministic transitive precedence paths", () => {
     expect(resolutionPath(bundle, "a", "c")).toEqual(["a", "b", "c"]);
     expect(resolutionPath(bundle, "c", "a")).toEqual([]);
+  });
+
+  it("matches contract canonical argument hashing", async () => {
+    expect(canonicalJson({ z: 1, a: [2n, "x"] })).toBe('{"a":["2","x"],"z":1}');
+    const args = contractArgs("replace_bundle", [3n, JSON.stringify(bundle), 7n]);
+    expect(args).toEqual(["3", bundle, "7"]);
+    expect(await digest(args)).toMatch(/^[0-9a-f]{64}$/);
   });
 });

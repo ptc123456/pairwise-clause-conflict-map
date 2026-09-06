@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bundleJson, CONTRACT, finalized, getCase, getIdByNonce, getVersion, submit, writer } from "./contract";
-import { cells, EMPTY_BUNDLE, resolutionPath, type Bundle, type CaseRecord } from "./domain";
+import { cells, contractArgs, digest, EMPTY_BUNDLE, resolutionPath, type Bundle, type CaseRecord } from "./domain";
 import { journalJson, removeUnsigned, reserve, update } from "./pending";
 import { useWallet, walletStore } from "./wallet";
 
@@ -65,36 +65,44 @@ export default function App() {
   const [hash, setHash] = useState<string>();
   const [message, setMessage] = useState("");
   const [page, setPage] = useState(0);
+  const lifecycle = useRef(new AbortController());
+  useEffect(() => () => lifecycle.current.abort(new Error("Transaction view closed.")), []);
   const preview = useMemo(() => cells(bundle), [bundle]);
 
   async function write(method: string, args: unknown[], intent: string, expectedRevision: string) {
     if (wallet.phase !== "CONNECTED" || !wallet.selected || !wallet.account) { setPhase("FAILED"); return setMessage("Connect a detected wallet before writing."); }
     if (!CONTRACT) { setPhase("FAILED"); return setMessage("Contract address will be configured after deployment."); }
-    const journal = await reserve({ chain: String(61999), contract: CONTRACT, account: wallet.account, method, intent, args_json: journalJson(args), pre_revision: expectedRevision, pre_hash: "0".repeat(64) });
-    setPhase("WAITING_FOR_WALLET"); setMessage("Confirm this exact action in your wallet.");
+    let journal;
     let submittedHash = "";
     try {
+      const preHash = record ? await digest(record) : "0".repeat(64);
+      const expectedArgsHash = await digest(contractArgs(method, args));
+      journal = await reserve({ chain: String(61999), contract: CONTRACT, account: wallet.account, method, intent, args_json: journalJson(args), pre_revision: expectedRevision, pre_hash: preHash });
+      setPhase("WAITING_FOR_WALLET"); setMessage("Confirm this exact action in your wallet.");
       const tx = await submit(writer(wallet.selected.provider, wallet.account), method, args);
       submittedHash = tx;
       setHash(tx); await update(journal.reservation, { status: "SUBMITTED", tx_hash: tx });
       setPhase("SUBMITTED"); setPhase("WAITING_FOR_FINALITY"); setMessage("Validators are processing the submitted transaction.");
-      await finalized(tx); setPhase("VERIFYING_EXECUTION");
+      await finalized(tx, lifecycle.current.signal); setPhase("VERIFYING_EXECUTION");
       setPhase("VERIFYING_READBACK");
       let id = caseId; let revision = String(Number(expectedRevision) + 1);
       if (method === "create_bundle") { const nonce = String(args[0]); id = await getIdByNonce(wallet.account, nonce); revision = "1"; if (id === "0") throw new Error("Finalized create was not found by its nonce."); setCaseId(id); }
       const next = await getVersion(id, revision);
-      if (next.last_operation?.method !== method || next.last_operation.caller !== wallet.account) throw new Error("Authoritative readback does not match the submitted operation.");
+      if (next.last_operation?.method !== method || next.last_operation.caller !== wallet.account || next.last_operation.args_hash !== expectedArgsHash) throw new Error("Authoritative readback does not match the submitted operation.");
       setRecord(next);
       await update(journal.reservation, { status: "VERIFIED", tx_hash: tx }); setPhase("SUCCESS"); setMessage("Execution and authoritative contract readback agree.");
     } catch (cause) {
       const rejected = typeof cause === "object" && cause !== null && "code" in cause && Number((cause as { code: unknown }).code) === 4001;
-      if (rejected) { await removeUnsigned(journal.reservation); setPhase("REJECTED"); }
-      else { await update(journal.reservation, { status: "RECONCILE", tx_hash: submittedHash }); setPhase("RECONCILIATION_REQUIRED"); }
+      if (rejected && journal) { await removeUnsigned(journal.reservation); setPhase("REJECTED"); }
+      else if (journal) { await update(journal.reservation, { status: "RECONCILE", tx_hash: submittedHash }); setPhase("RECONCILIATION_REQUIRED"); }
+      else setPhase("FAILED");
       setMessage(cause instanceof Error ? cause.message : "The operation could not be verified.");
     }
   }
 
+  const chooserOpen = ['CHOOSER_OPEN', 'CONNECTING', 'ERROR'].includes(wallet.phase);
   return <main>
+    <div id="app-shell" inert={chooserOpen ? true : undefined} aria-hidden={chooserOpen || undefined}>
     <header><div><strong>Pairwise Clause Conflict Map</strong><small>GenLayer semantic conflict mapping</small></div>{wallet.phase === "CONNECTED" ? <div><span>{wallet.selected?.name} · {wallet.account?.slice(0, 6)}…{wallet.account?.slice(-4)}</span><button onClick={() => walletStore.disconnect()}>Disconnect</button></div> : <button onClick={() => walletStore.open()}>Connect wallet</button>}</header>
     <section className="hero"><p className="eyebrow">AUDIT DECLARED SCENARIOS</p><h1>See where policy clauses collide—and whether precedence resolves the pair.</h1><p>Assessment of this exact submitted material only; not verification of external facts.</p></section>
     <p className="warning">All submitted text will be public and permanent. Do not include private information, credentials or personal records.</p>
@@ -102,7 +110,9 @@ export default function App() {
     <section id="author" className="panel"><Editor bundle={bundle} setBundle={setBundle} /><div className="actions"><button onClick={() => { const nonce = crypto.randomUUID().replaceAll("-", "").slice(0, 32); void write("create_bundle", [nonce, bundleJson(bundle), 0n], `create:${wallet.account ?? "disconnected"}:${nonce}`, "0"); }}>Create bundle</button>{record?.phase === "BASE_DRAFT" && <><button onClick={() => void write("replace_bundle", [BigInt(record.id), bundleJson(bundle), BigInt(record.revision)], `replace_bundle:${record.id}:${record.revision}`, record.revision)}>Save changes</button><button onClick={() => void write("freeze_bundle", [BigInt(record.id), BigInt(record.revision)], `freeze_bundle:${record.id}:${record.revision}`, record.revision)}>Freeze</button></>}{record?.phase === "FROZEN" && <button onClick={() => void write("analyze_conflicts", [BigInt(record.id), BigInt(record.revision)], `analyze_conflicts:${record.id}:${record.revision}`, record.revision)}>Analyze</button>}{record?.phase === "UNRESOLVED" && <button onClick={() => void write("retry_bundle", [BigInt(record.id), BigInt(record.revision)], `retry_bundle:${record.id}:${record.revision}`, record.revision)}>Retry</button>}</div></section>
     <TransactionProgress phase={phase} hash={hash} message={message} />
     <section id="map" className="panel"><h2>Pair × scenario map</h2><div className="lookup"><input aria-label="Case ID" value={caseId} onChange={(e) => setCaseId(e.target.value)} /><button onClick={() => void getCase(caseId).then((next) => { setRecord(next); setBundle(next.base); setPage(0); }).catch((error) => { setPhase("FAILED"); setMessage(error.message); })}>Load case</button></div><p>Preview: {preview.length} cells</p><div className="grid">{preview.slice(page * 24, page * 24 + 24).map((cell, offset) => { const index = page * 24 + offset; const label = record?.result.labels?.[index] ?? "PENDING"; const forward = label === "CLASH" ? resolutionPath(bundle, cell.left.id, cell.right.id) : []; const reverse = label === "CLASH" ? resolutionPath(bundle, cell.right.id, cell.left.id) : []; return <article key={index}><small>{cell.scenario.id}</small><strong>{cell.left.id} × {cell.right.id}</strong><span>{label}</span>{label === "CLASH" && <small>{forward.length ? forward.join(" → ") : reverse.length ? reverse.join(" → ") : "No precedence path"}</small>}</article>; })}</div>{preview.length > 24 && <div className="pager"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)}>Previous</button><span>Page {page + 1} of {Math.ceil(preview.length / 24)}</span><button disabled={(page + 1) * 24 >= preview.length} onClick={() => setPage((value) => value + 1)}>Next</button></div>}{record && <div className="outcome"><strong>{record.outcome || record.phase}</strong><span>Revision {record.revision} · {record.accepted_attempts} accepted analysis attempt(s)</span></div>}</section>
+    {wallet.phase === "WRONG_CHAIN" && <section className="progress" role="alert"><strong>Wrong network</strong><span>{wallet.error}</span><button onClick={() => void walletStore.recoverChain()}>Switch to Studionet</button></section>}
     <section id="docs" className="panel"><h2>How it works</h2><ol><li>Author clauses and hypothetical scenarios.</li><li>Declare a cycle-free higher/lower precedence graph.</li><li>Freeze the exact public bundle.</li><li>GenLayer validators independently classify each pair in each scenario.</li><li>The contract exposes raw clashes and whether one directed precedence path resolves each clash.</li></ol><p><strong>Permanent scope:</strong> Pairwise map only. Whole-bundle and internal single-clause consistency are not assessed. Other scenarios are not assessed.</p></section>
+    </div>
     <WalletChooser />
   </main>;
 }

@@ -30,6 +30,24 @@ export function resolutionPath(bundle: Bundle, start: string, target: string): s
   return [];
 }
 
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
+  if (typeof value === "bigint") return JSON.stringify(value.toString());
+  return JSON.stringify(value);
+}
+
+export async function digest(value: unknown): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalJson(value)));
+  return [...new Uint8Array(bytes)].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+export function contractArgs(method: string, args: unknown[]): unknown[] {
+  if (method === "create_bundle") return [String(args[0]), JSON.parse(String(args[1])), String(args[2])];
+  if (method === "replace_bundle") return [String(args[0]), JSON.parse(String(args[1])), String(args[2])];
+  return args.map(String);
+}
+
 export function parseCase(value: unknown): CaseRecord {
   if (typeof value !== "string") throw new Error("Contract returned a non-text case record.");
   const record = JSON.parse(value) as Partial<CaseRecord>;
