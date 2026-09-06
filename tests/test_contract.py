@@ -181,3 +181,23 @@ def test_stale_revision_and_wrong_actor_leave_state_unchanged(direct_vm, direct_
         with direct_vm.expect_revert("UNAUTHORIZED"):
             contract.freeze_bundle(1, 1)
     assert contract.get_case(1) == before
+
+
+def test_deployer_is_upgrader_and_upgrade_is_authorized(direct_vm, direct_deploy, direct_owner, direct_bob):
+    contract = deploy(direct_deploy)
+    # Direct Mode unloads the temporary module from sys.modules after deploy;
+    # retain the exact contract-bound runtime object for Root Slot assertions.
+    gl = contract._instance.upgrade.__globals__["gl"]
+    expected_upgrader = f"0x{direct_owner.hex()}"
+    assert contract.get_upgrader().lower() == expected_upgrader
+    assert [value.as_hex.lower() for value in gl.storage.Root.get().upgraders.get()] == [expected_upgrader]
+
+    original_code = bytes(gl.storage.Root.get().code.get())
+    with direct_vm.prank(direct_bob):
+        with direct_vm.expect_revert("UPGRADE_NOT_AUTHORIZED"):
+            contract.upgrade(b"unauthorized-code")
+    assert bytes(gl.storage.Root.get().code.get()) == original_code
+
+    replacement_code = b"# exact isolated upgrade rehearsal\n"
+    contract.upgrade(replacement_code)
+    assert bytes(gl.storage.Root.get().code.get()) == replacement_code

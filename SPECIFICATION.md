@@ -10,7 +10,7 @@ The product never certifies whole-bundle consistency, single-clause consistency,
 
 ## Contract protocol
 
-The authoritative storage fields, exact record schema, capacities, validation rules, revision/history behavior, methods, outcomes and reducer are those in `STAGE-2.md`. The public write surface is exactly:
+The authoritative product storage fields, record schema, capacities, validation rules, revision/history behavior, methods, outcomes and reducer are those in `STAGE-2.md`. The product write surface is exactly:
 
 - `create_bundle(nonce:str,base_json:str,parent:u256)->u256`
 - `replace_bundle(id:u256,base_json:str,expected_revision:u256)->None`
@@ -18,7 +18,7 @@ The authoritative storage fields, exact record schema, capacities, validation ru
 - `analyze_conflicts(id:u256,expected_revision:u256)->None`
 - `retry_bundle(id:u256,expected_revision:u256)->None`
 
-The seven common views in `STAGE-2.md` are also required. One-clause analysis skips the model and commits `NO_PAIRS_TO_COMPARE`. Every other analysis uses one `gl.vm.run_nondet_unsafe` wrapper whose validator independently reruns the same bounded prompt and compares the complete consequential `{v:1,labels:[...]}` object. Failures and disagreement do not mutate state.
+The seven common product views in `STAGE-2.md` are also required. The governance-required recovery surface additionally exposes `get_upgrader()->str` and `upgrade(new_code:bytes)->None`; it is operational recovery infrastructure, not an advertised conflict-map feature. One-clause analysis skips the model and commits `NO_PAIRS_TO_COMPARE`. Every other analysis uses one `gl.vm.run_nondet_unsafe` wrapper whose validator independently reruns the same bounded prompt and compares the complete consequential `{v:1,labels:[...]}` object. Failures and disagreement do not mutate state.
 
 ## Runtime lock
 

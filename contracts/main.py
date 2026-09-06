@@ -213,6 +213,9 @@ class PairwiseClauseConflictMap(gl.Contract):
 
     def __init__(self) -> None:
         self.case_count = u256(0)
+        # VERIFY-AT-STUDIO: confirm the locked deployment sender is the Root upgrader.
+        root = gl.storage.Root.get()
+        root.upgraders.get().append(gl.message.sender_address)
 
     def _sender(self):
         return address(gl.message.sender_address)
@@ -400,3 +403,17 @@ class PairwiseClauseConflictMap(gl.Contract):
     @gl.public.view
     def list_children(self, parent_id: u256, offset: u256, limit: u256) -> str:
         return self._page(json.loads(self.child_index.get(uint(parent_id, False), "[]")), offset, limit)
+
+    @gl.public.view
+    def get_upgrader(self) -> str:
+        return gl.storage.Root.get().upgraders.get()[0].as_hex
+
+    @gl.public.write
+    def upgrade(self, new_code: bytes) -> None:
+        # VERIFY-AT-STUDIO: Root locked-slot authorization must match this explicit guard.
+        root = gl.storage.Root.get()
+        if gl.message.sender_address not in root.upgraders.get():
+            fail("UPGRADE_NOT_AUTHORIZED")
+        code = root.code.get()
+        code.truncate()
+        code.extend(new_code)

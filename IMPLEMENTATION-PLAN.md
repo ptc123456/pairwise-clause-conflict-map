@@ -22,3 +22,4 @@
 
 - Locked current verified source header/import spelling and UTF-8 CLI environment. No behavior or public interface changed.
 - The pre-lock probe avoided dereferencing a Direct Mode bytes fixture as `Address`; production address normalization remains explicitly tested.
+- Added the governance-required Root Slot recovery surface before `PRE_DEPLOY`: deployment sender registration, `get_upgrader()` readback, and authorization-checked `upgrade(bytes)`. This technical interface addition does not alter the approved conflict-map actors, workflow, outcomes, or frontend journey; Direct Mode covers registration, authorized replacement, unauthorized rollback, and code-byte preservation.
