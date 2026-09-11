@@ -8,7 +8,7 @@ Checkpoint: `PRE_DEPLOY` only. This package does not authorize deployment, publi
 - Candidate contract: `contracts/main.py`.
 - Contract SHA-256: `F04CD0DF757BE71A7EA129C73113E78238C6364FBAEEC90F4275156CC90D7103`.
 - Schema SHA-256: `2CAB2C53E8CCA884ED518E6D6A704702917C660FDC6968C4160D42B63378E4D9`.
-- Intended Studio deployer and initial Root upgrader: `0xeF5D2119416A2f5afa35dCFA209766EFC1BE5902`.
+- Intended Studio deployer and initial Root upgrader: `0x15872d1887b8ff7322F2aa7c3c535f1F00dbb452` (selected from the currently available Studio accounts; visible balance 1,000,000 GEN).
 - No deployment, signature, transaction, contract address, GitHub target or Vercel target exists at this checkpoint.
 
 ## Toolchain and commands

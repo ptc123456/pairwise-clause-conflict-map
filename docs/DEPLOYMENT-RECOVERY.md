@@ -1,6 +1,6 @@
 # Deployment and recovery boundary
 
-The exact `PRE_DEPLOY` package locks Studio account `0xeF5D2119416A2f5afa35dCFA209766EFC1BE5902` as both intended deployer and initial upgrader before any deployment transaction. The constructor registers the runtime deployment sender in `gl.storage.Root.get().upgraders`; finalized `get_upgrader()` readback must match this locked public address.
+The exact `PRE_DEPLOY` package locks Studio account `0x15872d1887b8ff7322F2aa7c3c535f1F00dbb452` as both intended deployer and initial upgrader before any deployment transaction. The constructor registers the runtime deployment sender in `gl.storage.Root.get().upgraders`; finalized `get_upgrader()` readback must match this locked public address.
 
 `upgrade(new_code: bytes)` replaces Root Slot code only when the caller is registered in the locked upgrader set. Every replacement must preserve the existing storage-field order and types unless a separately reviewed migration plan is approved. Upgrade payload bytes, source hash, caller identity, execution success and post-write code/readback parity must be verified independently.
 
