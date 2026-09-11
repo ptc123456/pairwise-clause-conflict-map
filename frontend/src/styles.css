@@ -1296,6 +1296,10 @@ legend {
   flex-wrap: wrap;
 }
 
+.evidence-views { margin: 1rem 0; padding: 1rem; border: 1px solid var(--border); border-radius: 12px; }
+.evidence-views .button-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.view-evidence { display: block; margin-top: .75rem; overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+
 .matrix-count {
   font-size: 0.85rem;
   color: var(--color-ink-2);

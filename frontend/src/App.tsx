@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { bundleJson, CONTRACT, finalized, getCase, getIdByNonce, getVersion, submit, writer } from "./contract";
+import { bundleJson, CONTRACT, FinalizedExecutionError, finalized, getCase, getCount, getIdByNonce, getOptionalVersion, getVersion, listActor, listCases, listChildren, submit, writer } from "./contract";
 import { cells, contractArgs, digest, EMPTY_BUNDLE, resolutionPath, type Bundle, type CaseRecord } from "./domain";
 import { journalJson, removeUnsigned, reserve, update } from "./pending";
 import { useWallet, walletStore } from "./wallet";
@@ -360,6 +360,7 @@ export default function App() {
   const [hash, setHash] = useState<string>();
   const [message, setMessage] = useState("");
   const [page, setPage] = useState(0);
+  const [viewEvidence, setViewEvidence] = useState("");
   const lifecycle = useRef(new AbortController());
 
   useEffect(() => () => lifecycle.current.abort(new Error("Transaction view closed.")), []);
@@ -432,6 +433,30 @@ export default function App() {
       if (rejected && journal) {
         await removeUnsigned(journal.reservation);
         setPhase("REJECTED");
+      } else if (cause instanceof FinalizedExecutionError && journal) {
+        try {
+          const failedRevision = method === "create_bundle" ? "1" : String(BigInt(expectedRevision) + 1n);
+          let accepted: CaseRecord | undefined;
+          if (method === "create_bundle") {
+            const createdId = await getIdByNonce(wallet.account, String(args[0]));
+            if (createdId !== "0") accepted = await getVersion(createdId, failedRevision);
+          } else {
+            accepted = await getOptionalVersion(caseId, failedRevision);
+            if (!accepted) {
+              const prior = await getVersion(caseId, expectedRevision);
+              if (await digest(prior) !== journal.pre_hash) throw new Error("Failed-write prestate readback mismatch.");
+            }
+          }
+          await update(journal.reservation, { status: "FINALIZED_ERROR", tx_hash: submittedHash });
+          setPhase("FAILED");
+          setMessage(accepted
+            ? `Finalized execution failed. Revision ${failedRevision} belongs to ${accepted.last_operation?.method ?? "another accepted operation"}; this transaction will not be retried.`
+            : "Finalized execution failed and no accepted next revision was found; this transaction will not be retried.");
+          return;
+        } catch {
+          await update(journal.reservation, { status: "RECONCILE", tx_hash: submittedHash });
+          setPhase("RECONCILIATION_REQUIRED");
+        }
       } else if (journal) {
         await update(journal.reservation, { status: "RECONCILE", tx_hash: submittedHash });
         setPhase("RECONCILIATION_REQUIRED");
@@ -445,6 +470,10 @@ export default function App() {
   const chooserOpen = ['CHOOSER_OPEN', 'CONNECTING', 'ERROR'].includes(wallet.phase);
   const isLocked = record ? record.phase !== "BASE_DRAFT" : false;
   const isConnected = wallet.phase === "CONNECTED";
+  async function showView(label: string, work: () => Promise<unknown>) {
+    try { setViewEvidence(`${label}: ${JSON.stringify(await work())}`); }
+    catch (error) { setViewEvidence(`${label}: ${error instanceof Error ? error.message : "Read failed"}`); }
+  }
 
   return (
     <main>
@@ -732,6 +761,18 @@ export default function App() {
                 </span>
               </div>
             )}
+          </div>
+
+          <div className="evidence-views" aria-label="Bounded contract evidence views">
+            <strong>Evidence views</strong>
+            <div className="button-row">
+              <button type="button" className="btn btn-secondary" onClick={() => void showView("Case count", getCount)}>Count</button>
+              <button type="button" className="btn btn-secondary" onClick={() => void showView("Case list", () => listCases())}>Cases</button>
+              <button type="button" className="btn btn-secondary" disabled={!wallet.account} onClick={() => wallet.account && void showView("Actor cases", () => listActor(wallet.account!))}>My cases</button>
+              <button type="button" className="btn btn-secondary" onClick={() => void showView("Children", () => listChildren(caseId))}>Children</button>
+              <button type="button" className="btn btn-secondary" onClick={() => void showView("History", () => getVersion(caseId, record?.revision ?? "1"))}>History</button>
+            </div>
+            {viewEvidence && <output className="view-evidence" aria-live="polite">{viewEvidence}</output>}
           </div>
 
           {/* Matrix Grid */}

@@ -4,21 +4,41 @@ import type { TransactionHash } from "genlayer-js/types";
 import type { Address, Bundle, CaseRecord } from "./domain";
 import { parseCase } from "./domain";
 import type { Provider } from "./wallet";
-import { bounded } from "./rpc";
+import { bounded, boundedOnce } from "./rpc";
 
 const configured = String(import.meta.env.VITE_CONTRACT_ADDRESS ?? "").toLowerCase();
 export const CONTRACT = (/^0x[0-9a-f]{40}$/.test(configured) ? configured : "") as Address | "";
 const readClient = createClient({ chain: studionet });
-async function readRecord(functionName: "get_case" | "get_version", args: bigint[]): Promise<CaseRecord> {
+const requireContract = () => {
   if (!CONTRACT) throw new Error("Contract address is not configured yet.");
-  return parseCase(await readClient.readContract({ address: CONTRACT, functionName, args }));
+  return CONTRACT;
+};
+async function boundedRead<T>(row: string, functionName: string, args: unknown[], parse: (value: unknown) => T): Promise<T> {
+  const address = requireContract();
+  return parse(await boundedOnce(row, `${functionName}:${JSON.stringify(args, (_key, value) => typeof value === "bigint" ? value.toString() : value)}`,
+    () => readClient.readContract({ address, functionName, args: args as never[] })));
 }
+async function readRecord(functionName: "get_case" | "get_version", args: bigint[]): Promise<CaseRecord> {
+  return boundedRead(`view:${functionName}:${args.join(":")}`, functionName, args, parseCase);
+}
+const parseOptionalCase = (value: unknown) => value === "null" ? undefined : parseCase(value);
 export const getCase = (id: string) => readRecord("get_case", [BigInt(id)]);
 export const getVersion = (id: string, revision: string) => readRecord("get_version", [BigInt(id), BigInt(revision)]);
+export const getOptionalVersion = (id: string, revision: string) => boundedRead(`view:get_version:${id}:${revision}`, "get_version", [BigInt(id), BigInt(revision)], parseOptionalCase);
 export async function getIdByNonce(creator: Address, nonce: string): Promise<string> {
-  if (!CONTRACT) throw new Error("Contract address is not configured yet.");
-  return String(await readClient.readContract({ address: CONTRACT, functionName: "get_id_by_nonce", args: [creator, nonce] }));
+  return boundedRead(`view:get_id_by_nonce:${creator}:${nonce}`, "get_id_by_nonce", [creator, nonce], String);
 }
+type IdPage = { ids: string[]; next: string };
+const parsePage = (value: unknown): IdPage => {
+  if (typeof value !== "string") throw new Error("Contract returned a non-text page.");
+  const page = JSON.parse(value) as Partial<IdPage>;
+  if (!Array.isArray(page.ids) || !page.ids.every((id) => /^(0|[1-9][0-9]*)$/.test(id)) || !/^(0|[1-9][0-9]*)$/.test(page.next ?? "")) throw new Error("Contract returned an invalid page.");
+  return page as IdPage;
+};
+export const getCount = () => boundedRead("view:get_count", "get_count", [], String);
+export const listCases = (start = "1", limit = "4") => boundedRead(`view:list_cases:${start}:${limit}`, "list_cases", [BigInt(start), BigInt(limit)], parsePage);
+export const listActor = (actor: Address, offset = "0", limit = "4") => boundedRead(`view:list_actor:${actor}:${offset}:${limit}`, "list_actor", [actor, BigInt(offset), BigInt(limit)], parsePage);
+export const listChildren = (parent: string, offset = "0", limit = "4") => boundedRead(`view:list_children:${parent}:${offset}:${limit}`, "list_children", [BigInt(parent), BigInt(offset), BigInt(limit)], parsePage);
 export function writer(provider: Provider, account: Address) { return createClient({ chain: studionet, provider, account }); }
 export async function submit(client: ReturnType<typeof writer>, method: string, args: unknown[]) {
   if (!CONTRACT) throw new Error("Contract address is not configured yet.");
@@ -39,7 +59,8 @@ export async function finalized(hash: TransactionHash, signal: AbortSignal) {
     if (transaction.statusName === "FINALIZED") break;
   }
   if (!transaction || transaction.statusName !== "FINALIZED") throw new Error("Finality was not observed within the RPC budget. Reconcile this hash; do not resubmit.");
-  if (!isSuccessful(transaction)) throw new Error(`Execution failed: ${transaction.statusName} / ${transaction.txExecutionResultName}`);
+  if (!isSuccessful(transaction)) throw new FinalizedExecutionError(`Execution failed: ${transaction.statusName} / ${transaction.txExecutionResultName}`);
   return transaction;
 }
+export class FinalizedExecutionError extends Error {}
 export const bundleJson = (bundle: Bundle) => JSON.stringify(bundle);

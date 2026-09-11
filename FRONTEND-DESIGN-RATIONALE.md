@@ -33,3 +33,5 @@ Recommended component direction: an inline command/search-style navigation appro
 ## Review criteria
 
 The redesign succeeds only if it preserves every existing functional control and contract boundary, makes current lifecycle and transaction state legible without internal/debug language, works without horizontal overflow at 320/375/414/768 px, keeps all controls keyboard-operable with visible focus, supports reduced motion, and leaves the exact public-scope warning and pairwise-only limitation prominent.
+
+Reproducible results and the exact browser assertions are recorded in `docs/FRONTEND-QA-EVIDENCE.md`.

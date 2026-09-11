@@ -26,4 +26,12 @@ describe("pending write journal", () => {
     await expect(update(submitted.reservation, { status: "RECONCILE", tx_hash: `0x${"2".repeat(64)}` })).rejects.toThrow("immutable");
     await expect(removeUnsigned(submitted.reservation)).rejects.toThrow("cannot be removed");
   });
+
+  it("records a finalized execution error as terminal without erasing its hash", async () => {
+    const item = await reserve(base);
+    const hash = `0x${"3".repeat(64)}`;
+    await update(item.reservation, { status: "FINALIZED_ERROR", tx_hash: hash });
+    expect(loadJournal()[0]).toMatchObject({ status: "FINALIZED_ERROR", tx_hash: hash });
+    await expect(reserve(base)).resolves.toMatchObject({ status: "SIGNING" });
+  });
 });

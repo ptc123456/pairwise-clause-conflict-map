@@ -26,7 +26,7 @@ npm --prefix frontend run build
 npm --prefix frontend audit --omit=dev
 ```
 
-Results: 14 Python tests passed; lint and semantic validation passed; schema exposed 14 methods (8 view, 6 write); 4 frontend files/8 tests passed; production build passed; production dependency audit found 0 vulnerabilities. Vite reported one non-blocking bundle-size warning for an 838.37 kB minified chunk (202.26 kB gzip); no runtime or correctness failure resulted.
+Results: 14 Python tests passed; lint and semantic validation passed; schema exposed 14 methods (8 view, 6 write); 5 frontend files/13 tests passed; production build passed; production dependency audit found 0 vulnerabilities. Vite reported one non-blocking bundle-size warning for an 841.20 kB minified chunk (203.12 kB gzip); no runtime or correctness failure resulted.
 
 ## ABI inventory
 
@@ -58,11 +58,15 @@ Tests cover agreement, every single changed cell across the 264-cell maximum, ma
 
 ## Frontend and transaction controls
 
-The React/Vite frontend retains the exact announced EIP-6963 provider object for MetaMask, OKX and Rabby; unknown announcements are hidden and no synthetic wallet is offered. One shared bounded RPC client, one wallet store and one Web Locks journal own writes. The lifecycle does not claim success from a hash: it requires terminal semantic success and authoritative readback; ambiguous/interrupted writes remain reconciliation-only and cannot be resubmitted blindly. Design QA covered 320/375/414/768 and desktop widths, no horizontal overflow, at least 44 px targets, unsaved lifecycle warning and neutral network state.
+The React/Vite frontend retains the exact announced EIP-6963 provider object for MetaMask, OKX and Rabby; unknown announcements are hidden and no synthetic wallet is offered. All seven product views route through one shared bounded/single-flight read wrapper and are exposed through case detail plus Count, Cases, My cases, Children and History controls. One wallet store and one Web Locks journal own writes. The lifecycle does not claim success from a hash: it requires terminal semantic success and authoritative readback; ambiguous/interrupted writes remain reconciliation-only and cannot be resubmitted blindly. A finalized execution failure is persisted as `FINALIZED_ERROR` only after the nonce/history or exact prestate readback distinguishes it from an ambiguous receipt; readback failure remains `RECONCILE`. Reproducible design QA in `docs/FRONTEND-QA-EVIDENCE.md` covers 320/375/414/768 widths, horizontal overflow, 44 px targets, labels, modal keyboard/focus behavior and reduced motion.
 
 ## Studio and RPC boundary
 
-`docs/RPC-BUDGET.md` locks `OBSERVABLE_ACTION_LEDGER`, with no physical-request-count claim. `docs/STUDIO-PREFLIGHT.md` records the read-only source import, selected account, one transient 30 requests/minute rate limit, one bounded cooldown retry, zero Monaco error markers afterward, two inaccessible warning markers, and the fact that Run & Debug recognized the contract but does not expose method forms until deployment. No validator was configured and no transaction occurred. After approval, deployment must stop if Studio does not expose all 14 methods or if finalized `get_upgrader()` does not equal the locked account.
+`docs/RPC-BUDGET.md` locks `OBSERVABLE_ACTION_LEDGER`, with no physical-request-count claim. `docs/STUDIO-PREFLIGHT.md` records the read-only source import and reconciles its immutable contract hash to the externally supplied review candidate, selected account, one transient 30 requests/minute rate limit, one bounded cooldown retry, zero Monaco error markers afterward, two inaccessible warning markers, and the fact that Run & Debug recognized the contract but does not expose method forms until deployment. No validator was configured and no transaction occurred. After approval, deployment must stop if Studio does not expose all 14 methods or if finalized `get_upgrader()` does not equal the locked account.
+
+## Anonymous review correction delta
+
+The first anonymous review returned `CHANGES REQUIRED` with F-001 through F-005. This revision routes every product read through the bounded wrapper (F-001), exposes every required product view (F-002), separates finalized execution errors from receipt ambiguity with exact historical/prestate readback (F-003), removes the impossible self-referential commit claim while preserving Studio-import/source-hash provenance (F-004), and records reproducible viewport/accessibility/focus evidence plus regression checks (F-005). No contract, schema, scope, deployment, signature or transaction changed.
 
 ## Experience application and disclosed limits
 
