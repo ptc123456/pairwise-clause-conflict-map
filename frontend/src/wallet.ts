@@ -8,6 +8,8 @@ export interface Wallet { id: WalletId; name: string; uuid: string; provider: Pr
 type Phase = "DISCONNECTED" | "DISCOVERING" | "CHOOSER_OPEN" | "CONNECTING" | "CONNECTED" | "WRONG_CHAIN" | "ERROR";
 interface State { phase: Phase; wallets: readonly Wallet[]; selected?: Wallet; account?: Address; error?: string }
 
+export const WALLET_SESSION_STATE_MACHINE = "wallet-session-state-machine";
+
 const RDNS: Record<string, { id: WalletId; name: string }> = {
   "io.metamask": { id: "metamask", name: "MetaMask" },
   "com.okex.wallet": { id: "okx", name: "OKX Wallet" },
@@ -25,6 +27,9 @@ let cleanup = () => {};
 function emit(next: State) { state = Object.freeze(next); listeners.forEach((fn) => fn()); }
 function snapshot() { return state; }
 function subscribe(fn: () => void) { listeners.add(fn); return () => listeners.delete(fn); }
+export const getWalletState = snapshot;
+export const subscribeWalletState = subscribe;
+export const selectWalletView = (value: State = snapshot()) => value;
 function validAddress(value: unknown): Address | undefined { const text = String(value ?? "").toLowerCase(); return /^0x[0-9a-f]{40}$/.test(text) ? text as Address : undefined; }
 const CHAIN_HEX = `0x${studionet.id.toString(16)}`;
 const correctChain = (value: unknown) => String(value ?? "").toLowerCase() === CHAIN_HEX;
@@ -65,18 +70,22 @@ export const walletStore = {
         }
       }
       if (!correctChain(await wallet.provider.request({ method: "eth_chainId" }))) throw new Error("Wallet is not connected to GenLayer Studionet.");
-      const accounts = await wallet.provider.request({ method: "eth_requestAccounts" });
+      const existing = await wallet.provider.request({ method: "eth_accounts" });
+      const accounts = Array.isArray(existing) && existing.length > 0
+        ? existing
+        : await wallet.provider.request({ method: "eth_requestAccounts" });
       const account = validAddress(Array.isArray(accounts) ? accounts[0] : undefined);
       if (!account) throw new Error("The wallet did not return a valid account.");
       cleanup();
       const accountsChanged = (value: unknown) => { const next = validAddress(Array.isArray(value) ? value[0] : undefined); next ? emit({ ...state, phase: "CONNECTED", account: next }) : walletStore.disconnect(); };
       const chainChanged = (value: unknown) => correctChain(value) ? emit({ ...state, phase: "CONNECTED", error: undefined }) : emit({ ...state, phase: "WRONG_CHAIN", error: "Network changed. Reconnect before writing." });
-      wallet.provider.on?.("accountsChanged", accountsChanged); wallet.provider.on?.("chainChanged", chainChanged);
-      cleanup = () => { wallet.provider.removeListener?.("accountsChanged", accountsChanged); wallet.provider.removeListener?.("chainChanged", chainChanged); };
+      const disconnected = () => walletStore.disconnect();
+      wallet.provider.on?.("accountsChanged", accountsChanged); wallet.provider.on?.("chainChanged", chainChanged); wallet.provider.on?.("disconnect", disconnected);
+      cleanup = () => { wallet.provider.removeListener?.("accountsChanged", accountsChanged); wallet.provider.removeListener?.("chainChanged", chainChanged); wallet.provider.removeListener?.("disconnect", disconnected); };
       emit({ phase: "CONNECTED", wallets: state.wallets, selected: wallet, account });
     } catch (cause) { emit({ ...state, phase: "ERROR", error: cause instanceof Error ? cause.message : "Wallet connection failed." }); }
   },
   disconnect() { cleanup(); cleanup = () => {}; emit({ phase: "DISCONNECTED", wallets: state.wallets }); },
   async recoverChain() { if (!state.selected) return; await this.connect(state.selected); },
 };
-export function useWallet() { return useSyncExternalStore(walletStore.subscribe, walletStore.snapshot); }
+export function useWallet() { return useSyncExternalStore(subscribeWalletState, getWalletState); }

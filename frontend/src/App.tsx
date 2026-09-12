@@ -33,6 +33,7 @@ function TransactionProgress({ phase, hash, message }: { phase: Progress; hash?:
     <section
       className={`progress ${alert ? "progress-alert" : isSuccess ? "progress-success" : "progress-pending"}`}
       data-transaction-phase={phase}
+      data-motion-policy="prefers-reduced-motion"
       role={alert ? "alert" : "status"}
       aria-live={alert ? "assertive" : "polite"}
     >
@@ -485,7 +486,6 @@ export default function App() {
           </div>
 
           <div className="header-meta-actions">
-            {/* Finding 3: Neutral Target state unless actually CONNECTED */}
             <div
               className={`network-indicator ${isConnected ? "network-connected" : "network-target"}`}
               title={

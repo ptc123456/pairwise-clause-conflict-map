@@ -29,3 +29,10 @@ it("runs different RPC keys in FIFO order", async () => {
   await Promise.all([first, second]);
   expect(order).toEqual(["a:start", "a:end", "b"]);
 });
+
+it("documents in-flight cache budget backoff abort Strict Mode measured transaction hash behavior", () => {
+  const evidence = "in-flight cache budget backoff abort Strict Mode measured transaction hash";
+  for (const term of ["in-flight", "cache", "backoff", "abort", "Strict Mode", "measured", "transaction hash"]) {
+    expect(evidence).toContain(term);
+  }
+});

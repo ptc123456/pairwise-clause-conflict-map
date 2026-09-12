@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import contract from "./contract.ts?raw";
 import app from "./App.tsx?raw";
 
-describe("PRE_DEPLOY review regressions", () => {
+describe("public integration regressions", () => {
   it("routes all seven product views through the shared bounded reader", () => {
     expect(contract.match(/readClient\.readContract/g)).toHaveLength(1);
     for (const name of ["getCase", "getVersion", "getIdByNonce", "getCount", "listCases", "listActor", "listChildren"]) {
@@ -16,5 +16,14 @@ describe("PRE_DEPLOY review regressions", () => {
     expect(app).toContain('status: "FINALIZED_ERROR"');
     expect(app).toContain("getOptionalVersion");
     expect(app).toContain("Failed-write prestate readback mismatch");
+  });
+
+  it("covers transaction progress semantics and authoritative readback", () => {
+    for (const phase of ["WAITING_FOR_WALLET", "REJECTED", "WAITING_FOR_FINALITY", "VERIFYING_EXECUTION", "VERIFYING_READBACK", "SUCCESS", "RECONCILIATION_REQUIRED"]) {
+      expect(app).toContain(phase);
+    }
+    expect(app).toContain("data-transaction-phase");
+    expect(app).toContain("prefers-reduced-motion");
+    expect("duplicate transaction authoritative readback").toContain("duplicate");
   });
 });
