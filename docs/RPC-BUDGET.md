@@ -46,12 +46,29 @@ STUDIO_CAPABILITY_TOOL_OR_API: Codex in-app Browser accessibility/DOM state, bro
 STUDIO_CAPABILITY_CHECK: Inspected the available Browser APIs before opening Studio. They expose primary-AI navigation/click/form actions, resulting DOM/accessibility state, console entries and page performance resource entries, but do not expose a complete physical request-event stream with stable one-event-per-wire-request identity across Studio workers and wallet/provider internals.
 STUDIO_CAPABILITY_RESULT: Physical network requests cannot be counted reliably with the available surface. Every primary-AI Studio action, transaction submission/hash, bounded poll attempt, terminal receipt read and authoritative readback remains directly observable and will be recorded.
 STUDIO_PHYSICAL_COUNT_CLAIM: NONE
-STUDIO_ACTION_LEDGER_STATUS: READY
-STUDIO_ACTIONS: NOT_STARTED
-STUDIO_TRANSACTIONS: NOT_STARTED
-STUDIO_TRANSACTION_HASHES: []
-STUDIO_STATUS_POLL_ATTEMPTS: NOT_STARTED
-STUDIO_TERMINAL_RECEIPT_READS: NOT_STARTED
-STUDIO_AUTHORITATIVE_READBACKS: NOT_STARTED
+STUDIO_PRE_E2E_ACTION_LEDGER_STATUS: READY
+STUDIO_PRE_E2E_ACTIONS: NOT_STARTED_AT_PROBE
+STUDIO_PRE_E2E_TRANSACTIONS: NOT_STARTED_AT_PROBE
+STUDIO_PRE_E2E_TRANSACTION_HASHES: []
+STUDIO_PRE_E2E_STATUS_POLL_ATTEMPTS: NOT_STARTED_AT_PROBE
+STUDIO_PRE_E2E_TERMINAL_RECEIPT_READS: NOT_STARTED_AT_PROBE
+STUDIO_PRE_E2E_AUTHORITATIVE_READBACKS: NOT_STARTED_AT_PROBE
+STUDIO_PRE_E2E_DUPLICATE_TRANSACTIONS: 0
+STUDIO_PRE_E2E_MATRIX_VARIANCE: NONE_BEFORE_E2E
+
+## OBSERVED STUDIO E2E LEDGER (POST_DEPLOY)
+
+STUDIO_ACTION_LEDGER_STATUS: COMPLETE
+STUDIO_MEASUREMENT_MODE: OBSERVABLE_ACTION_LEDGER
+STUDIO_PHYSICAL_COUNT_CLAIM: NONE
 STUDIO_DUPLICATE_TRANSACTIONS: 0
-STUDIO_MATRIX_VARIANCE: NONE_BEFORE_E2E
+STUDIO_DEPLOYMENT_ACTIONS_OBSERVED: 1
+STUDIO_METHOD_SUBMISSIONS_OBSERVED: 9
+STUDIO_TRANSACTION_HASHES: [`0x8c8b776c326e1d9e2e99a728cba59a75fffb3af0f6ab5f23c96d9bf6ad52a80d`, `0x3781d8f12c9f7fe35f01ec9850470756e77b8bc494554c205003ddf19228f97d`, `0x4ef75c947748914a5d460c87dffe1ba122feb321def429bedd1687623b91441e`, `0xb048ad585122e023e188d279a1b4ca22bf5f36527efd32d531e27fef253ce016`, `0x8a0547e853d39a509f0215c13d4e8064d43659201cca6fbe81f53e3049f9fdc5`, `0xe88ae2afc2e96911f1f07f45de63b04f2c3164d274d74c9a71ac9b464f3628f1`, `0x22c3c22f456808382a831e6844c09bb495f454700cadb81621be16cad5d4b625`, `0xc4ccc6ab027d5b91b769c8dc833f42751daf06c2d45d3b815b95878fa481bac2`, `0x609c97f1fff07f32490aa9c6990bf0c558c0816bc954c927f9a3d60403a62cc9`]
+STUDIO_METHOD_SUBMISSIONS: two `create_bundle`, one successful `replace_bundle`, two successful `freeze_bundle`, two successful `analyze_conflicts`, one successful cooldown-gated `retry_bundle`, and one expected stale-revision `freeze_bundle` rejection
+STUDIO_TERMINAL_RECEIPT_DETAIL_READS_OBSERVED: 9 method receipts
+STUDIO_STATUS_POLL_ATTEMPTS: NOT_SEPARATELY_OBSERVABLE; five bounded DOM status observations for replacement, three for freeze, four for case 2 analysis, and six for retry were recorded in the E2E ledger
+STUDIO_AUTHORITATIVE_READBACKS_OBSERVED: 10 successful reads: method inventory, `get_upgrader()`, `get_case(1)` after analyze and stale rejection, initial `get_count()`, `get_version(2,1)`, `get_version(2,2)`, `get_version(2,3)`, `get_case(2)` after analysis, and `get_case(2)` after retry; two `get_id_by_nonce` calls failed validation and returned no value
+STUDIO_MATRIX_VARIANCE: Replacement remained `REVEALING` across four of five bounded UI observations, then finalized on the fifth at about 35.8s; row nominal maximum was three observations. Freeze finalized within three observations. Case 2 analysis finalized after four observations and retry after six, above their nominal three-observation rows. Browser telemetry does not expose corresponding physical poll counts. No resubmission or duplicate transaction.
+
+Nine of at most ten method submissions have been used; the stale-revision call returned `ERROR` with validator `[rollback] STALE_REVISION` and was not appealed or resubmitted. Case 2 replacement, freeze, analysis, and the single cooldown-gated retry finalized successfully; `get_version(2,2)`, `get_version(2,3)`, and the two `get_case(2)` readbacks verify the exact stored draft, locks, attempt-1 prestate, and attempt-2 final state. The final attempt-2 state is intentionally `UNRESOLVED` because both live nondeterministic classifications contained `UNKNOWN`; local tests cover third-unknown exhaustion, while the approved live matrix stops after one retry. The finalized post-rejection `get_case(1)` remained `DONE`, `revision=3`, `base_locked=true`, and `CLASH`. Physical network request totals are intentionally not inferred from console/resource observations. Studio E2E is complete with one method-transaction slot unused.
