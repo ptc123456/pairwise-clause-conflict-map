@@ -73,7 +73,7 @@ export function LifecycleTracker({
               </span>
               <span className="meta-chip">
                 <span className="meta-label">REV</span>
-                <span className="meta-value meta-value-dim">—</span>
+                <span className="meta-value meta-value-dim">N/A</span>
               </span>
               <span className="meta-chip">
                 <span className="meta-label">PHASE</span>

@@ -531,11 +531,11 @@ export default function App() {
           </div>
         </header>
 
-        {/* Hero Section — Workbench Heading & Scope Statement */}
+        {/* Hero Section: Workbench Heading & Scope Statement */}
         <section className="hero" aria-labelledby="hero-title">
           <p className="eyebrow">AUDIT DECLARED SCENARIOS</p>
           <h1 id="hero-title">
-            See where policy clauses collide—and whether precedence resolves the pair.
+            See where policy clauses collide, and whether precedence resolves the pair.
           </h1>
           <p className="hero-lede">
             Assessment of this exact submitted material only; not verification of external facts.
