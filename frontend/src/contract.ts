@@ -6,8 +6,8 @@ import { parseCase } from "./domain";
 import type { Provider } from "./wallet";
 import { bounded, boundedOnce } from "./rpc";
 
-const configured = String(import.meta.env.VITE_CONTRACT_ADDRESS ?? "").toLowerCase();
-export const CONTRACT = (/^0x[0-9a-f]{40}$/.test(configured) ? configured : "") as Address | "";
+const configured = String(import.meta.env.VITE_CONTRACT_ADDRESS ?? "").trim();
+export const CONTRACT = (/^0x[0-9a-fA-F]{40}$/.test(configured) ? configured : "") as Address | "";
 const readClient = createClient({ chain: studionet });
 const requireContract = () => {
   if (!CONTRACT) throw new Error("Contract address is not configured yet.");
