@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { bundleJson, CONTRACT, FinalizedExecutionError, finalized, getCase, getCount, getIdByNonce, getOptionalVersion, getVersion, listActor, listCases, listChildren, submit, writer } from "./contract";
 import { cells, contractArgs, digest, EMPTY_BUNDLE, resolutionPath, type Bundle, type CaseRecord } from "./domain";
-import { journalJson, removeUnsigned, reserve, update } from "./pending";
+import { journalJson, loadJournal, removeUnsigned, reserve, update } from "./pending";
 import { useWallet, walletStore } from "./wallet";
 import { BrandMark } from "./components/BrandMark";
 import { LifecycleTracker } from "./components/LifecycleTracker";
@@ -725,10 +725,33 @@ export default function App() {
                 type="button"
                 onClick={() =>
                   void getCase(caseId)
-                    .then((next) => {
+                    .then(async (next) => {
+                      const operation = next.last_operation;
+                      if (operation && wallet.account && CONTRACT) {
+                        for (const item of loadJournal().filter((entry) =>
+                          entry.status === "RECONCILE" &&
+                          entry.chain === String(61999) &&
+                          entry.contract.toLowerCase() === CONTRACT.toLowerCase() &&
+                          entry.account.toLowerCase() === operation.caller.toLowerCase() &&
+                          entry.method === operation.method,
+                        )) {
+                          try {
+                            const args = JSON.parse(item.args_json) as unknown[];
+                            if (Array.isArray(args) && await digest(contractArgs(item.method, args)) === operation.args_hash) {
+                              await update(item.reservation, { status: "VERIFIED", tx_hash: item.tx_hash });
+                              break;
+                            }
+                          } catch {
+                            // Keep an unreadable journal record unresolved.
+                          }
+                        }
+                      }
                       setRecord(next);
                       setBundle(next.base);
                       setPage(0);
+                      setPhase("IDLE");
+                      setMessage("");
+                      setHash(undefined);
                     })
                     .catch((error) => {
                       setPhase("FAILED");

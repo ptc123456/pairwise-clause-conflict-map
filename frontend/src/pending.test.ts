@@ -34,4 +34,12 @@ describe("pending write journal", () => {
     expect(loadJournal()[0]).toMatchObject({ status: "FINALIZED_ERROR", tx_hash: hash });
     await expect(reserve(base)).resolves.toMatchObject({ status: "SIGNING" });
   });
+
+  it("allows an exact reconciled hash to become verified without changing it", async () => {
+    const item = await reserve(base);
+    const hash = `0x${"4".repeat(64)}`;
+    await update(item.reservation, { status: "RECONCILE", tx_hash: hash });
+    await update(item.reservation, { status: "VERIFIED", tx_hash: hash });
+    expect(loadJournal()[0]).toMatchObject({ status: "VERIFIED", tx_hash: hash });
+  });
 });

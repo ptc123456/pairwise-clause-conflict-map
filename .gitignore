@@ -12,3 +12,5 @@ frontend/playwright-report/
 
 .vercel
 .env*
+!.env.example
+!frontend/.env.example
