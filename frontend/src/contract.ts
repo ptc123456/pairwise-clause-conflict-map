@@ -1,4 +1,4 @@
-import { createClient, isSuccessful } from "genlayer-js";
+import { createClient } from "genlayer-js";
 import { studionet } from "genlayer-js/chains";
 import type { TransactionHash } from "genlayer-js/types";
 import type { Address, Bundle, CaseRecord } from "./domain";
@@ -59,7 +59,7 @@ export async function finalized(hash: TransactionHash, signal: AbortSignal) {
     if (transaction.statusName === "FINALIZED") break;
   }
   if (!transaction || transaction.statusName !== "FINALIZED") throw new Error("Finality was not observed within the RPC budget. Reconcile this hash; do not resubmit.");
-  if (!isSuccessful(transaction)) throw new FinalizedExecutionError(`Execution failed: ${transaction.statusName} / ${transaction.txExecutionResultName}`);
+  if (transaction.txExecutionResultName !== "FINISHED_WITH_RETURN") throw new FinalizedExecutionError(`Execution failed: ${transaction.statusName} / ${transaction.txExecutionResultName}`);
   return transaction;
 }
 export class FinalizedExecutionError extends Error {}
